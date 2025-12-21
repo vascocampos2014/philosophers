@@ -6,7 +6,7 @@
 /*   By: vaires-m <vaires-m@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/16 14:44:24 by vaires-m          #+#    #+#             */
-/*   Updated: 2025/06/16 14:44:25 by vaires-m         ###   ########.fr       */
+/*   Updated: 2025/12/21 20:55:05 by vaires-m         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -43,5 +43,5 @@ void	precise_usleep(long microseconds)
 
 	start = get_time_in_ms();
 	while ((get_time_in_ms() - start) * 1000 < microseconds)
-		usleep(100); // sleep for 100us to avoid oversleeping
+		usleep(100);
 }

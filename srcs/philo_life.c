@@ -6,7 +6,7 @@
 /*   By: vaires-m <vaires-m@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/16 14:44:32 by vaires-m          #+#    #+#             */
-/*   Updated: 2025/06/16 14:53:55 by vaires-m         ###   ########.fr       */
+/*   Updated: 2025/12/21 20:12:17 by vaires-m         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -33,46 +33,70 @@ void	*philosopher(void *data)
 	return (NULL);
 }
 
-void *monitor_routine(void *arg)
+static int	check_philo_state(t_philo *philo, t_table *table)
 {
-    t_philo *philos = (t_philo *)arg;
-    t_table *table = philos[0].table;
-    int i;
-    int finished;
+	long	time_since_meal;
+	int		ate_enough;
 
-    while (1)
-    {
-        finished = 0;
-        i = 0;
-        while (i < table->num_philos)
-        {
-            pthread_mutex_lock(&philos[i].meal_mutex);
-            long time_since_meal = get_time_in_ms() - philos[i].last_meal;
-            if (table->must_eat_count > 0 && philos[i].times_ate >= table->must_eat_count)
-                finished++;
-            if (time_since_meal > table->time_to_die && philos[i].last_meal != 0)
-            {
-                pthread_mutex_lock(&table->death_mutex);
-                if (!table->simulation_end)
-                {
-                    table->simulation_end = true;
-                    print_status(&philos[i], "died");
-                }
-                pthread_mutex_unlock(&table->death_mutex);
-                pthread_mutex_unlock(&philos[i].meal_mutex);
-                return NULL;
-            }
-            pthread_mutex_unlock(&philos[i].meal_mutex);
-            i++;
-        }
-        if (table->must_eat_count > 0 && finished == table->num_philos)
-        {
-            pthread_mutex_lock(&table->death_mutex);
-            table->simulation_end = true;
-            pthread_mutex_unlock(&table->death_mutex);
-            return NULL;
-        }
-        usleep(1000); // Check every 1ms
-    }
-    return NULL;
+	ate_enough = 0;
+	pthread_mutex_lock(&philo->meal_mutex);
+	time_since_meal = get_time_in_ms() - philo->last_meal;
+	if (time_since_meal > table->time_to_die && philo->last_meal != 0)
+	{
+		pthread_mutex_lock(&table->death_mutex);
+		if (!table->simulation_end)
+		{
+			table->simulation_end = true;
+			print_status(philo, "died");
+		}
+		pthread_mutex_unlock(&table->death_mutex);
+		pthread_mutex_unlock(&philo->meal_mutex);
+		return (-1);
+	}
+	if (table->must_eat_count > 0 && philo->times_ate >= table->must_eat_count)
+		ate_enough = 1;
+	pthread_mutex_unlock(&philo->meal_mutex);
+	return (ate_enough);
+}
+
+static int	check_all_philos(t_philo *philos, t_table *table)
+{
+	int	i;
+	int	finished;
+	int	status;
+
+	i = 0;
+	finished = 0;
+	while (i < table->num_philos)
+	{
+		status = check_philo_state(&philos[i], table);
+		if (status == -1)
+			return (1);
+		finished += status;
+		i++;
+	}
+	if (table->must_eat_count > 0 && finished == table->num_philos)
+	{
+		pthread_mutex_lock(&table->death_mutex);
+		table->simulation_end = true;
+		pthread_mutex_unlock(&table->death_mutex);
+		return (1);
+	}
+	return (0);
+}
+
+void	*monitor_routine(void *arg)
+{
+	t_philo	*philos;
+	t_table	*table;
+
+	philos = (t_philo *)arg;
+	table = philos[0].table;
+	while (1)
+	{
+		if (check_all_philos(philos, table))
+			return (NULL);
+		usleep(1000);
+	}
+	return (NULL);
 }
